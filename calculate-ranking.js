@@ -9,11 +9,12 @@ var $monthDropdown = $('#months-dd');
 
 // Any info message shows here
 var $infoMSG = $('#info-msg');
+var $errMsg = $('#err-msg');
 
 var $reportSection = $('#report-section')
 
 
-const tableMatrix = `<table style='font-family: Arial, Helvetica, sans-serif;
+var tableMatrix = `<table style='font-family: Arial, Helvetica, sans-serif;
     border: 1px solid;
     border-collapse: collapse;
     width: 100%;
@@ -27,13 +28,10 @@ const tableMatrix = `<table style='font-family: Arial, Helvetica, sans-serif;
     <th>Fish</th>
     <th>Fishery Name</th>
     <th>WeightLB</th>
+    <th>WeightOz</th>
 
 </tr>`;
 
-// $monthDropdown.change(function () {
-//     selectedMonth = $('#months-dd option:selected').text();
-//     alert(selectedMonth);
-// });
 
 // Troutmasters site URL
 siteUrl = 'https://bauer.sharepoint.com/sites/UK-Publishing-Troutmasters/';
@@ -48,11 +46,7 @@ function checkDropdown(selectedMonth, selectedList) {
     }
     if (selectedList.includes('Choose')) {
         alert('Please select a database');
-
-    } else {
-        // do nothing
     }
-
 }
 
 // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -74,7 +68,7 @@ function calculateRanks() {
     var camlQuery = new SP.CamlQuery();
 
     // set caml query
-    camlQuery.set_viewXml("<View><Query><Where><Eq><FieldRef Name='Month'/><Value Type='Number'>" + selectedMonth + "</Value></Eq></Where><GroupBy><FieldRef Name='Fishery_x0020_Name' /></GroupBy><OrderBy><FieldRef Name='WeightLB' Ascending='FALSE'/></OrderBy></Query></View>");
+    camlQuery.set_viewXml("<View><Query><Where><Eq><FieldRef Name='Month'/><Value Type='Number'>" + selectedMonth + "</Value></Eq></Where><GroupBy><FieldRef Name='Fishery_x0020_Name' /></GroupBy><OrderBy><FieldRef Name='CalculatedWeight' Ascending='FALSE'/></OrderBy></Query></View>");
 
     console.log('camlQuery : ', camlQuery);
 
@@ -98,7 +92,7 @@ function onCalcRankSucceeded(sender, args) {
         $infoMSG.text('no results found');
         return false;
     } else {
-        $infoMSG.text(count + 'results found.')
+        $infoMSG.text(count + ' results found.')
     }
 
     var listItemInfo = '';
@@ -122,14 +116,14 @@ function onCalcRankSucceeded(sender, args) {
         }
 
         var fisherman = oListItem.get_item('Title');
-        var weightLB = oListItem.get_item('WeightLB');
+        var calcuWeight = oListItem.get_item('CalculatedWeight');
 
         // if prevFishery is undefined, set its value to currFishery (this is to set a value for the first time so it won't set the rank to 0 when the query first runs)
         if (prevFishery === undefined) {
-            console.log('preFishery is undefined!!!');
+            console.log('setting previous fishery to be current fishery');
             var placeholderVal = currFishery;
             prevFishery = placeholderVal;
-        } else {};
+        }
 
 
         // If the current item's fishery name is the same as the previous item's fishery name
@@ -142,18 +136,16 @@ function onCalcRankSucceeded(sender, args) {
             console.log('fishery has changed => reset the rank to: ', rank);
         }
 
-        listItemInfo += '\nFisherman: ' + fisherman +
-            '\nFishery: ' + currFishery +
-            '\nFish weight: ' + weightLB +
-            '\nRank: ' + rank;
-
+        listItemInfo += `Fisherman: ${fisherman}
+                        Fishery: ${currFishery}
+                        Fish calcu weight: ${calcuWeight}
+                        Rank: ${rank}
+                        `
 
         // update the item's rank - in the "Rank" field
         oListItem.set_item("RankTest", rank);
         oListItem.update();
         clientContext.executeQueryAsync(onUpdateSucceeded, onUpdateFailed);
-
-        // console.log('current record is', listItemInfo);
 
         // set previous fishery with the name of the current one to keep track
         prevFishery = currFishery;
@@ -170,7 +162,10 @@ function onUpdateSucceeded() {
     //clear the message
     setTimeout(function () {
         $infoMSG.empty();
-    }, 5000)
+    }, 2000)
+    // clear any previous report displayed
+    clearField($reportSection);
+    clearField($errMsg);
 }
 
 // If update item's rank failed ❌
@@ -195,7 +190,7 @@ function getWinnersAF() {
     var selectedMonth = $('#months-dd option:selected').val();
 
     // Get list
-    var SPList = $('#database-dd option:selected').val();
+    SPList = $('#database-dd option:selected').val();
 
     var oList = clientContext.get_web().get_lists().getByTitle(SPList);
 
@@ -204,7 +199,7 @@ function getWinnersAF() {
     var camlQuery = new SP.CamlQuery();
 
     // Get the 3 heaviest fish caught 
-    camlQuery.set_viewXml(`<View><Query><Where><Eq><FieldRef Name='Month'/><Value Type='Number'> ${selectedMonth} </Value></Eq></Where><OrderBy><FieldRef Name='WeightLB' Ascending='FALSE'/></OrderBy></Query><RowLimit>3</RowLimit></View>`);
+    camlQuery.set_viewXml(`<View><Query><Where><Eq><FieldRef Name='Month'/><Value Type='Number'> ${selectedMonth} </Value></Eq></Where><OrderBy><FieldRef Name='CalculatedWeight' Ascending='FALSE'/></OrderBy></Query><RowLimit>3</RowLimit></View>`);
 
     console.log('camlQuery : ', camlQuery);
 
@@ -227,9 +222,10 @@ function ongetWinnersAFSucceeded(sender, args) {
 
     while (listItemEnumerator.moveNext()) {
         var oListItem = listItemEnumerator.get_current();
-
+        var itemID = oListItem.get_id();
 
         var anglersName = oListItem.get_item('Title');
+
         var fish = oListItem.get_item('Fish');
         try {
             var fisheryName = oListItem.get_item('Fishery_x0020_Name').get_lookupValue();
@@ -239,16 +235,18 @@ function ongetWinnersAFSucceeded(sender, args) {
         }
 
         var weightLB = oListItem.get_item('WeightLB');
+        var weightOz = oListItem.get_item('WeightOz');
 
         position++;
 
         rankList += `
                         <tr style='padding-top: 12px; padding-bottom: 12px'>
-                        <td style='padding-top: 12px; padding-bottom: 12px'>${position}</td>
-                        <td>${anglersName} </td>
+                        <td style='padding-top: 12px; padding-bottom: 12px; padding-left: 12px'>${position}</td>
+                        <td><a data-interception="off" target="_blank" href="https://bauer.sharepoint.com/sites/UK-Publishing-Troutmasters/Lists/${SPList}/DispForm.aspx?ID=${itemID}"> ${anglersName} </a></td>
                         <td>${fish}</td>
                         <td>${fisheryName}</td>
                         <td>${weightLB}</td>
+                        <td>${weightOz}</td>
                     </tr>
                     <tr>
 
@@ -277,7 +275,7 @@ function getWinnersPF() {
     var selectedMonth = $('#months-dd option:selected').val();
 
     // Get list
-    var SPList = $('#database-dd option:selected').val();
+    SPList = $('#database-dd option:selected').val();
 
     var oList = clientContext.get_web().get_lists().getByTitle(SPList);
 
@@ -286,14 +284,10 @@ function getWinnersPF() {
     var oList = clientContext.get_web().get_lists().getByTitle(SPList);
     var camlQuery = new SP.CamlQuery();
 
-    // camlQuery.set_viewXml(
-    //     `<View><Query><Where><And><Eq><FieldRef Name='Month' /><Value Type='Number'>${selectedMonth}</Value></Eq><Or><Eq><FieldRef Name='RankTest' /><Value Type='Number'>1</Value></Eq><Or><Eq><FieldRef Name='RankTest' /><Value Type='Number'>2</Value></Eq><Eq><FieldRef Name='RankTest'/><Value Type='Number'>3</Value></Eq></Or></Or></And></Where><GroupBy><FieldRef Name='Fishery_x0020_Name' /></GroupBy><OrdedrBy><FieldRef Name='RankTest' Ascending='TRUE'/></OrderBy></Query></View>`
-    // );
-
+    // RankTest column is displayed as "Month Rank" on the UI
     camlQuery.set_viewXml(
         `<View><Query><Where><And><Eq><FieldRef Name='Month' /><Value Type='Number'> ${selectedMonth}</Value></Eq><Or><Eq><FieldRef Name='RankTest' /><Value Type='Number'>1</Value></Eq><Or><Eq><FieldRef Name='RankTest' /><Value Type='Number'>2</Value></Eq><Eq><FieldRef Name='RankTest'/><Value Type='Number'>3</Value></Eq></Or></Or></And></Where><OrderBy><FieldRef Name='Fishery_x0020_Name' /><FieldRef Name='RankTest' Ascending='TRUE'/></OrderBy></Query></View>`
     );
-
 
 
     console.log('CAML QUERY PER FISHERY : ', camlQuery);
@@ -314,7 +308,8 @@ function onGetWinnersPFSucceeded(sender, args) {
 
     // set the INFO or ERROR message
     if (count <= 0) {
-        $infoMSG.text('Please make sure the ranks have been calculated. Press "Calculate Rank');
+        $errMsg.text('Please make sure the ranks have been calculated. Press "Calculate Rank');
+        clearField($reportSection);
         return false;
     } else {
 
@@ -326,8 +321,8 @@ function onGetWinnersPFSucceeded(sender, args) {
 
         while (listItemEnumerator.moveNext()) {
             var oListItem = listItemEnumerator.get_current();
-            // get the ID number
 
+            var itemID = oListItem.get_id();
 
             var anglersName = oListItem.get_item('Title');
             var fish = oListItem.get_item('Fish');
@@ -337,16 +332,23 @@ function onGetWinnersPFSucceeded(sender, args) {
             } catch (error) {
                 console.log(` the record Fishery Name field is blank`);
             }
+
             var weightLB = oListItem.get_item('WeightLB');
+            var weightOz = oListItem.get_item('WeightOz');
             var rank = oListItem.get_item('RankTest');
+
+            if (weightOz == null) {
+                weightOz = '-';
+            }
 
             rankListPF += `
                         <tr style='padding-top: 12px; padding-bottom: 12px'>
                         <td style='padding-top: 12px; padding-bottom: 12px; padding-left: 12px'>${rank}</td>
-                        <td>${anglersName} </td>
+                        <td><a data-interception="off" target="_blank" href="https://bauer.sharepoint.com/sites/UK-Publishing-Troutmasters/Lists/${SPList}/DispForm.aspx?ID=${itemID}">  ${anglersName} </a></td>
                         <td>${fish}</td>
                         <td>${fisheryName}</td>
                         <td>${weightLB}</td>
+                        <td>${weightOz}</td>
                     </tr>
                     <tr>
 
@@ -362,4 +364,8 @@ function onGetWinnersPFSucceeded(sender, args) {
 // If getWinnersPF fails ❌
 function onGetWinnersPFFAILED(sender, args) {
     console.log('Could not get the winners per fishery. Failed. :( ' + args.get_message() + '\n' + args.get_stackTrace());
+}
+
+function clearField($elem) {
+    $elem.empty();
 }

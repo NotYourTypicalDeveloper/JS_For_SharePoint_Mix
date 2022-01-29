@@ -14,3 +14,4 @@ Code written in 2020 and 2021
 *  Export to word or pdf
 *  Calculate rankings
 *  Cascade dropdowns
+*  Copy items button to create a copy of an item with different dates 

@@ -1,6 +1,6 @@
 ## Compilation of JS code snippets
 
-Used for customizing several SharePoint business app using vanilla JS, jQuery, SharePoint JS libraries & APIs. 
+Used for customizing several SharePoint business app using vanilla JS, JS libraries (Sharepoint sp.js, moment, typeahead, jQuery validations, bootstrap/popper) & APIs. 
 
 Code written in 2020 and 2021
 

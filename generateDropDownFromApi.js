@@ -24,6 +24,7 @@ function getCompanyCodes() {
       console.log(JSON.stringify(error));
     });
 }
+
 function onGetCompCodesSucceeded(data) {
   const jsonCompCodes = JSON.parse(data[0].JSON);
   //create an array with all the company codes
@@ -33,7 +34,8 @@ function onGetCompCodesSucceeded(data) {
   const uniqueCompCodes = [...new Set(compCodesArr)];
   const len = uniqueCompCodes.length;
   const compCodeInput = document.getElementById("company-code");
-  const compCodeOptions = document.querySelectorAll("#company-code option");
+  const $compCodeInput = $('#company-code');
+  const $compCodeOptions = $("#company-code option");
 
   // append those comp codes to the related dropdown
   for (i = 0; i < len; i++) {
@@ -43,9 +45,14 @@ function onGetCompCodesSucceeded(data) {
     compCodeInput.add(option);
   }
 
-  sortOptions(compCodeOptions);
+  sortOptions($compCodeOptions);
+  $compCodeInput.prepend("<option selected value=''>Please Select...</option>");
 
   return console.log("Company codes generated successfully..");
+}
+
+function onGetCompCodesFailed(sender, args) {
+  alert("Failed to retrieve company codes data " + args.get_message() + "\n" + args.get_stackTrace());
 }
 function onGetCompCodesFailed(sender, args) {
   alert("Failed to retrieve company codes data " + args.get_message() + "\n" + args.get_stackTrace());

@@ -32,10 +32,11 @@ function onGetCompCodesSucceeded(data) {
 
   // remove duplicates
   const uniqueCompCodes = [...new Set(compCodesArr)];
+  uniqueCompCodes.sort((a, b) => a - b); // sort byascending order
+
   const len = uniqueCompCodes.length;
   const compCodeInput = document.getElementById("company-code");
   const $compCodeInput = $('#company-code');
-  const $compCodeOptions = $("#company-code option");
 
   // append those comp codes to the related dropdown
   for (i = 0; i < len; i++) {
@@ -45,7 +46,6 @@ function onGetCompCodesSucceeded(data) {
     compCodeInput.add(option);
   }
 
-  sortOptions($compCodeOptions);
   $compCodeInput.prepend("<option selected value=''>Please Select...</option>");
 
   return console.log("Company codes generated successfully..");
